@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rage Wall</title>
+<meta name="description" content="Punch a wall with your webcam until it breaks. Then meet the one who did it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;900&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="stage" aria-label="The wall"></canvas>
+<video id="cam" playsinline muted></video>
+
+<!-- 00 intro -->
+<section id="scr-intro" class="screen paper on">
+  <div class="intro-art" aria-hidden="true"></div>
+  <div class="intro-wrap">
+    <div class="mono small">(an AR stress-relief game · desktop · webcam)</div>
+    <h1 class="disp giant">RAGE<br>WALL</h1>
+    <div class="serif tag">hit it till it gives</div>
+    <p class="lede">Punch the wall with your real fists. Keep going until it breaks. Then the camera turns around and shows you who did it.</p>
+    <div class="row">
+      <button class="btn btn-p" id="btn-cam">Turn on camera</button>
+      <button class="btn btn-g" id="btn-mouse">No camera? Use the mouse</button>
+    </div>
+    <div class="mono small steps"><span>(01) calibrate</span><span>(02) pick your fist</span><span>(03) break the wall</span></div>
+    <div class="mono small muted">(video never leaves this device · nothing is uploaded or saved unless you save it)</div>
+    <div class="mono small err" id="intro-err" hidden></div>
+  </div>
+</section>
+
+<!-- 01 calibrate -->
+<section id="scr-calib" class="screen">
+  <div class="calib-grid">
+    <div class="calib-cam">
+      <div class="cam-frame"><canvas id="calib-canvas"></canvas>
+        <div class="corners"></div>
+        <div class="mono cam-label">(webcam preview · mirrored)</div>
+        <div class="mono cam-status" id="calib-loading">(loading hand tracking…)</div>
+        <div class="warn cam-warn" id="calib-warn" role="status" aria-live="polite" hidden></div>
+      </div>
+    </div>
+    <div class="calib-panel paper">
+      <div class="between"><div class="mono small" id="calib-steplabel">(step 02 / 02 · calibrate fists)</div><div class="pips"><i class="on"></i><i class="on"></i></div></div>
+      <div id="calib-step1" class="calib-step">
+        <h2 class="disp h2">Step back.<br>Make fists.</h2>
+        <p class="body">Stand about an arm's length from the screen. Hold both fists up in guard, inside the frame, until both bars fill.</p>
+        <div class="meter">
+          <div class="meter-bar"><i id="m-close"></i><i id="m-ok"></i><i id="m-far"></i></div>
+          <div class="mono small meter-labels"><span id="ml-close">(too close)</span><span id="ml-ok">(just right)</span><span id="ml-far">(too far)</span></div>
+        </div>
+        <div class="grow"></div>
+        <div class="between"><span class="mono small">(calibrating)</span><span class="mono small red" id="calib-count">0 of 2 fists</span></div>
+        <div class="bars2"><div class="bar"><i id="cb-L"></i></div><div class="bar"><i id="cb-R"></i></div></div>
+        <div class="between mono small"><span id="cl-L">(L) not seen</span><span id="cl-R">(R) not seen</span></div>
+        <button class="link mono small" id="btn-one" hidden>Continue with one hand →</button>
+      </div>
+      <div id="calib-step2" class="calib-step" hidden>
+        <h2 class="disp h2">Now punch<br>the screen.</h2>
+        <p class="body">Throw three punches at the screen, the way you'd hit the wall. The game learns your speed, so a light jab and your hardest punch land differently.</p>
+        <div class="grow"></div>
+        <div class="between"><span class="mono small">(test punches)</span><span class="mono small red" id="test-count">0 of 3 punches</span></div>
+        <div class="testpips" id="test-pips"><i></i><i></i><i></i></div>
+        <button class="link mono small" id="btn-skiptest">Skip, use default punch strength →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 choose -->
+<section id="scr-choose" class="screen paper">
+  <div class="choose-head">
+    <div class="rel"><h2 class="disp h1red">CHOOSE YOUR<br>FIST</h2><div class="serif wisely">wisely</div></div>
+    <div class="right"><div class="mono small" id="choose-step">(step 01 / 02 · choose)</div><div class="pips"><i class="on"></i><i class="on"></i></div><div class="mono small" id="choose-hint">(hover with your fist · punch to start)</div></div>
+  </div>
+  <div class="plate" id="fist-row"></div>
+  <div class="choose-foot">
+    <p class="body">Click a fist to pick it, or use <span class="key">←</span> <span class="key">→</span></p>
+    <div class="row"><span class="mono small">press <span class="key">Enter</span></span><button class="btn btn-p" id="btn-start">Start punching</button></div>
+  </div>
+  <div class="cursor" id="hand-cursor"></div>
+</section>
+
+<!-- HUD -->
+<section id="hud" class="hud">
+  <div class="mono hud-tl">(wall 01 · graffiti over plaster)</div>
+  <div class="hud-tc"><div class="integrity"><i id="integ"></i></div><div class="warn" id="warn" role="status" aria-live="polite" hidden></div></div>
+  <div class="mono hud-bl" id="hint">(punch the wall · closed fists)</div>
+  <div class="mono hud-br"><span class="cam-only"><span id="dotL" class="dot"></span>L <span id="dotR" class="dot"></span>R</span><button class="hudbtn" id="btn-restart">Restart (R)</button><button class="hudbtn" id="btn-recal">Recalibrate (C)</button><button class="gear" id="btn-gear" aria-label="Settings">⚙</button></div>
+</section>
+
+<!-- reveal overlay -->
+<section id="replay-ui" class="hud">
+  <div class="mono hud-tl light" id="replay-label">(replay) 0.4×</div>
+  <div class="mono hud-tr light">(click to skip)</div>
+</section>
+
+<!-- end -->
+<section id="scr-end" class="screen endcard">
+  <div class="end-wrap">
+    <div class="mono small light">(wall down · <span id="end-hits">0</span> punches)<span id="end-time" hidden></span></div>
+    <h2 class="disp endtitle">THE REAL<br>YOU.</h2>
+    <div class="serif endnote">feel any better?</div>
+    <div class="row">
+      <button class="btn btn-p" id="btn-again">Break another wall</button>
+      <button class="btn btn-l" id="btn-save">Save this frame</button>
+      <button class="btn btn-l" id="btn-rewatch">Watch again</button>
+    </div>
+    <div class="row"><button class="link light mono small" id="btn-recal-end">Recalibrate first (C)</button><button class="link light mono small" id="btn-mode">Switch to mouse</button></div>
+    <div class="mono small light muted">(Enter · again   S · save   R · rewatch   C · recalibrate)</div>
+  </div>
+</section>
+
+<!-- settings -->
+<dialog id="settings">
+  <form method="dialog" class="set">
+    <h3 class="disp">Settings</h3>
+    <label>Punch sensitivity
+      <select id="set-sens"><option value="1.35">Gentle (easy to trigger)</option><option value="1" selected>Normal</option><option value="0.75">Hard hitter</option></select>
+    </label>
+    <label class="chk"><input type="checkbox" id="set-calib" checked> Calibrate before every wall (camera)</label>
+    <label class="chk"><input type="checkbox" id="set-fist" checked> Only closed fists count</label>
+    <label class="chk"><input type="checkbox" id="set-sound" checked> Sound</label>
+    <label class="chk"><input type="checkbox" id="set-debug"> Show tracking debug</label>
+    <button class="btn btn-p">Done</button>
+  </form>
+</dialog>
+
+<div id="debug" class="mono"></div>
+
+<script src="hands.js" onerror="this.remove()"></script>
+<script src="arms_meta.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
